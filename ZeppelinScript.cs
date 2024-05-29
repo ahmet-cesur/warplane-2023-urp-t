@@ -5,10 +5,10 @@ using UnityEngine;
 public class ZeppelinScript : MonoBehaviour
 {
     BonusEnemyScript bes;
-    private float h;
+    private float h;        // health of enemy npc
     Transform tr;
-    public Vector3 fallVector;
-    public Vector3 rotateVector;
+    Vector3 fallVector;     // a vector used for downwards movement
+    Vector3 rotateVector;   // a vector to give some rotational movement when moving downwards
 
     private void Awake()
     {

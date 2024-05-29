@@ -12,6 +12,7 @@ public class PlayerPlaneScript : MonoBehaviour
     public Vector3 direction3D;                     // a 3d vector for plane forward direction  
     Quaternion targetRot;                           // temporary value where the plane should look at   
     float speed;                                    // speed of plane at that instant
+    public float agility;                           // how fast can change direction
     [SerializeField] private float maxHealth;       // maximum health value when level loads or regeneration
     [SerializeField] private float health;                           // health variable of plane. 0 when dead   
     public float speedRatio;                        // speed lever value from canvas
@@ -42,9 +43,17 @@ public class PlayerPlaneScript : MonoBehaviour
     [SerializeField] private ParticleSystem exhaustLh;          // engine exhaust left side
     [SerializeField] private ParticleSystem exhaustRh;          // engine exhaust right side
     // this scripted is used by Warplane project
-    private bool waitIncomplete=true;                                    // wait a few frames before fixed update when game loads to prevent crashing to terrain.
+    public int waitIncomplete;                                    // wait a few frames before fixed update when game loads to prevent crashing to terrain.
+    private bool fireSecondGun=false;                       // to fire the second gun after 1 frame
+    public AudioSource engineSource;                        // audio source for engine sound
+    public AudioSource gunClipSource;                       // audio source for plane's gun    
+    public AudioClip shotClip;                              // audio clip of gun shot sound 
+    [SerializeField] private bool isDead;                            // a primitive check if plane is dead or not for taking damage
+    public float planeLift;                                 // how high must be distance from "bottom" component to rayscan hit
+
     void Start()
     {
+        isDead = false;
         canvasScript = GameObject.FindWithTag("Canvas").GetComponent<CanvasScript>();
         prefabController = GameObject.FindWithTag("Canvas").GetComponent<PrefabController>();
         animator = GetComponent<Animator>();
@@ -63,47 +72,65 @@ public class PlayerPlaneScript : MonoBehaviour
         grounded = true;
         RayCheck();    
     }
-    private void OnEnable()
-    {
-        waitIncomplete = true;
-    
-    }
+  
 
     private void Update()
     {
-        
-        if (waitIncomplete)
+        engineSource.pitch = 0.7f + speed/maxSpeedLow*0.4f;
+        if (waitIncomplete > 0)
         {
+            waitIncomplete--;
             return;
         }
-        if (tr.position.y < -0.5f)       //  crashed       
+        if (!isDead)
         {
-            PlaneDeath("You crashed", 10f);
-        }
-        direction3D = tr.up * dir.y * 0.4f + tr.right * dir.x * 0.3f + tr.forward;                              // from joystick input to 3d lookat vector
+            if (tr.position.y < -0.5f)       //  crashed       
+            {
+                PlaneDeath("You crashed", 10f);
+            }
+            direction3D = tr.up * dir.y * 0.4f + tr.right * dir.x * 0.3f + tr.forward;                              // from joystick input to 3d lookat vector
+
         
-        if (grounded)
+            if (grounded)
+            {
+                GroundState();
+            }
+            else  // to avoid stopping in airborne
+            {
+                FlyingState();
+            }
+
+
+            if (isFiring && canvasScript.bulletsLeft > 1)
+            {
+                gunTimer += Time.deltaTime;
+                FireSecondGun();
+                Fire03();
+                canvasScript.BulletAdjust();
+            }
+            if (!isFiring && MuzzleflashLeft.activeInHierarchy)
+            {
+                MuzzleflashLeft.SetActive(false);
+                MuzzleflashRight.SetActive(false);
+            }
+            
+            RegenHealth();
+            SpeedGauge();
+            CheckExhausts();
+        }
+        if (isDead)
         {
-            GroundState();  
+            if (speed < 5f)
+            {
+                fallingSpeed = 0.3f * (5f - speed) * (5f - speed);
+            }
+            else
+            {
+                fallingSpeed = 0f;
+            }
+            tr.position += (fallingSpeed * Vector3.up * -1f + speed * tr.forward) * Time.deltaTime;
+           // tr.position += speed * tr.forward * Time.deltaTime;
         }
-        else  // to avoid stopping in airborne
-        {
-            FlyingState();
-        }      
-        if (isFiring && canvasScript.bulletsLeft>1)
-        {         
-            gunTimer += Time.deltaTime;
-            Fire03();
-            canvasScript.BulletAdjust();
-        }
-        if (!isFiring && MuzzleflashLeft.activeInHierarchy )
-        {                       
-            MuzzleflashLeft.SetActive(false);
-            MuzzleflashRight.SetActive(false);
-        }
-        RegenHealth();
-        SpeedGauge();
-        CheckExhausts();
     }
  
 
@@ -129,9 +156,9 @@ public class PlayerPlaneScript : MonoBehaviour
         }
         targetRot = Quaternion.LookRotation(direction3D, Vector3.up);                                                   // this line helps yaw the plane when grounded
         tr.position += speed * direction3D * Time.deltaTime;                                                            // 0.25 is height from ground when wheels look ok         
-        if (groundClearance < 0.76f)                                                                                    // to make wheels position on ground level
+        if (groundClearance < planeLift)                                                                                    // to make wheels position on ground level
         {
-            tr.position += (0.75f - groundClearance) * Vector3.up * Time.deltaTime * 25f;                               // 0.25 is height from ground when wheels look ok
+            tr.position += (planeLift +0.01f - groundClearance) * Vector3.up * Time.deltaTime * 25f;                               // 0.25 is height from ground when wheels look ok
         }
 
         AdjTailAngle();                                                                                                 // tail of plane lifts at certain speed
@@ -140,7 +167,7 @@ public class PlayerPlaneScript : MonoBehaviour
     private void FlyingState()
     {
         speedRatio = Mathf.Clamp(speedRatio, 0.05f, 1f);
-        if (tr.rotation.eulerAngles.x > 180)
+        if (tr.rotation.eulerAngles.x > 180)            // moves faster when descending
         {
             gravityEffect = 1f + 0.005f * (tr.rotation.eulerAngles.x - 360f);
         }
@@ -148,7 +175,7 @@ public class PlayerPlaneScript : MonoBehaviour
         {
             gravityEffect = 1f + 0.005f * (tr.rotation.eulerAngles.x);
         }
-        speed = Mathf.Lerp(speed, speedRatio * maxSpeed * gravityEffect, 0.2f * Time.deltaTime);
+        speed = Mathf.Lerp(speed, speedRatio * maxSpeed * gravityEffect, 0.4f * Time.deltaTime);
 
         TrailControl();
         
@@ -161,7 +188,7 @@ public class PlayerPlaneScript : MonoBehaviour
         { 
             fallingSpeed = 0f;
         }       
-        if (tr.position.y > 80f)                                                    // check for extreme high altitude
+        if (tr.position.y > 80f)                                                                    // check for extreme high altitude
         {
             direction3D.y = Mathf.Clamp(direction3D.y, -0.5f, -0.05f);
         }
@@ -169,40 +196,36 @@ public class PlayerPlaneScript : MonoBehaviour
         {
             direction3D.y = Mathf.Clamp(direction3D.y, -0.5f, 0.5f);
         }
-        if (dir.x != 0f)
+        if (dir.x != 0f )
         {
             targetRot = Quaternion.LookRotation(direction3D, tr.up + tr.right * dir.x * 0.6f);       // this line helps yaw the plane when flying
         }
         else
         {
-            targetRot = Quaternion.LookRotation(direction3D, Vector3.up);       // this line helps yaw the plane when flying
+            targetRot = Quaternion.LookRotation(direction3D, Vector3.up);                           // this line helps return the plane to parallel
         }
         tr.position += (fallingSpeed * Vector3.up * -1f + speed * tr.forward ) * Time.deltaTime;
-        tr.rotation = Quaternion.Lerp(tr.rotation, targetRot, 1.7f * Time.deltaTime);
+        tr.rotation = Quaternion.Lerp(tr.rotation, targetRot, agility * Time.deltaTime);
     }
     private void FixedUpdate()
     {
-        if (waitIncomplete)
-        {
-           waitIncomplete = false;
+        if (waitIncomplete > 0)
+        {            
             return;
         }
-        RayCheck();
+        RayCheck();    
     }
 
     private void RayCheck()
     {
         RaycastHit hit;
 
-        if (Physics.Raycast(planeBottom.position, planeBottom.TransformDirection(Vector3.up * -1f), out hit, 10f, layerMask))
+        if (Physics.Raycast(planeBottom.position, planeBottom.TransformDirection(Vector3.up * -1f), out hit, 5f, layerMask))
         {
-            if (hit.distance > 0.8f)
+         
+            if (hit.distance < planeLift + 0.02f)
             {
-                grounded = false;
-            }
-            else if (hit.distance < 0.8f)
-            {
-                groundClearance = hit.distance;
+                groundClearance = hit.distance;               
                 grounded = true;
 
                 if (!landingGearOpen)
@@ -214,8 +237,12 @@ public class PlayerPlaneScript : MonoBehaviour
                     PlaneDeath("You crashed your plane "+hit.distance, 10f);  // landing gear can be opened here
                 }
             }
+            if (hit.distance > planeLift + 0.021f)
+            {
+                grounded = false;
+            }
         }
-        else        // if no raycast hit
+        else 
         {
             grounded = false;
         }
@@ -264,29 +291,43 @@ public class PlayerPlaneScript : MonoBehaviour
 
     public void Fire03()
     {
+     
         if (gunTimer > gunCooldown)
         {
             // fire left side gun
-         //   GameObject go = prefabController.GiveBullet();
+         
             GameObject go = prefabController.GetPooledObject();
             go.transform.position = gunLh.transform.position;
             go.transform.rotation = gunLh.transform.rotation;
             go.SetActive(true);
+            gunClipSource.PlayOneShot(shotClip);
 
             // fire right side gun
            // go = prefabController.GiveBullet();
-            go = prefabController.GetPooledObject();
-            go.transform.position = gunRh.transform.position;
-            go.transform.rotation = gunRh.transform.rotation;
-            go.SetActive(true);
+            
             gunTimer = 0f;
-            canvasScript.bulletsLeft += -2;
+            canvasScript.bulletsLeft += -1;
             canvasScript.BulletAdjust();
             if (!MuzzleflashLeft.activeInHierarchy)         // Adjust muzzle flash activity
             {
                 MuzzleflashLeft.SetActive(true);
                 MuzzleflashRight.SetActive(true);
             }
+            fireSecondGun=true;            
+        }
+    }
+
+    private void FireSecondGun()
+    {
+        if (fireSecondGun)
+        {
+            GameObject  go = prefabController.GetPooledObject();
+            go.transform.position = gunRh.transform.position;
+            go.transform.rotation = gunRh.transform.rotation;
+            go.SetActive(true);
+            fireSecondGun =false;
+            canvasScript.bulletsLeft += -1;
+            canvasScript.BulletAdjust();
         }
     }
 
@@ -347,32 +388,36 @@ public class PlayerPlaneScript : MonoBehaviour
     }
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Bullet"))
+        if (!isDead)
         {
-            if (other.TryGetComponent<BulletScript>(out BulletScript bul))
+            if (other.CompareTag("Bullet"))
             {
-                health += bul.damage * -1f;
-                canvasScript.AdjHealthSlider(health / maxHealth);
-                if (health < maxHealth * 0.4f)
+                if (other.TryGetComponent<BulletScript>(out BulletScript bul))
                 {
-                    smallFire.SetActive(true);
+                    health += bul.damage * -1f;
+                    canvasScript.AdjHealthSlider(health / maxHealth);
+                    if (health < maxHealth * 0.4f)
+                    {
+                        smallFire.SetActive(true);
+                    }
+                    if (health < 0f)
+                    {
+                        PlaneDeath("Killed In Action", 10f);
+                        isDead = true;
+                    }
                 }
-                if (health < 0f)
-                {
-                    PlaneDeath("Killed In Action", 10f);
-                }                         
-            }           
-        }     
-        else
-        {
-            string st = other.tag;
-            if(st == "EnemyPlane")
-            {
-                st = "an enemy plane";
             }
-            PlaneDeath("You crashed your plane to "+st, 10f);
+            else
+            {
+                string st = other.tag;
+                if (st == "EnemyPlane")
+                {
+                    st = "an enemy plane";
+                }
+                PlaneDeath("You crashed your plane to " + st, 10f);
+                isDead = true;
+            }
         }
-
     }
     private void CheckExhausts()
     {

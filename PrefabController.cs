@@ -5,27 +5,12 @@ using UnityEngine;
 
 public class PrefabController : MonoBehaviour
 {
-  //  public GameObject bulletPrefab;                   // prefab of bullet
-   // private GameObject[] bullets;
-  //  public int totalBullets;                    // how many bullets to instantiate
-    private GameObject go;
-    
+    private GameObject go;    
     public GameObject prefabToPool;
     public int initialPoolSize = 30;
-    private List<GameObject> objectPool;
+    private List<GameObject> objectPool; 
+    // this scripted is used by Warplane project to create and give bullets to player plane and enemy plane
 
-    // this scripted is used by Warplane project
-   /* private void Awake()
-    {
-       GameObject go1;
-        bullets = new GameObject[totalBullets];
-        for(int i=0; i<totalBullets; i++)
-        {
-            go1 = Instantiate(bulletPrefab);
-            bullets[i] = go1;
-            bullets[i].SetActive(false);
-        }       
-    }*/
     private void Start()
     {
         // Initialize the pool
@@ -59,16 +44,4 @@ public class PrefabController : MonoBehaviour
         objectPool.Add(newObj);
         return newObj;
     }
-
-  /*  public GameObject GiveBullet()
-    {       
-        for (int i = 0; i < totalBullets; i++)
-        {
-            if (!bullets[i].activeInHierarchy)
-            {
-                go= bullets[i];
-            }        
-        }        
-        return go;
-    }         */
 }

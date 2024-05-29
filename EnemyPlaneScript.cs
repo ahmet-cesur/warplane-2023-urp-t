@@ -14,8 +14,7 @@ public class EnemyPlaneScript : MonoBehaviour
     private Vector3 offset;                         // additional offset when flying to player
     Quaternion targetRot;                           // temporary value where the plane should look at   
 
-    [SerializeField] private float speed;                            // speed of plane at that instant
-    public Transform propellerTr;                   // transform of propeller
+    [SerializeField] private float speed;                            // speed of plane at that instant    
     [SerializeField] private float propSpeed;                   // turning speed of propeller
     [SerializeField] Transform gunLh;                           // left gun muzzle transform
     [SerializeField] Transform gunRh;                           // right gun muzzle transform
@@ -25,9 +24,11 @@ public class EnemyPlaneScript : MonoBehaviour
     [SerializeField] private GameObject MuzzleflashLeft;        // muzzle flash on left gun exit
     [SerializeField] private GameObject MuzzleflashRight;       // muzzle flash on right gun exit  
     public bool isGoingToPlayer;                            // is enemy plane going to player plane;
-    public Transform enemyWaypoint;                           // where is the enemy going when not going to player 
+    public Transform enemyWaypoint;                         // where is the enemy going when not going to player 
     private BonusEnemyScript bes;                           // script attached to object controlling health, score etc.
-    
+    public AudioSource gunSource;                           // audio source of firing guns
+    public AudioClip shotClip;                              // gun shoot audio clip 
+
     private void Start()
     {
         bes = GetComponent<BonusEnemyScript>();    
@@ -43,12 +44,12 @@ public class EnemyPlaneScript : MonoBehaviour
         {
             enemyWaypoint = GameObject.Find("EnemyWayPt").transform;
         }
+        gunSource=GetComponent<AudioSource>();
     }
-
 
     private void Update()
     {       
-        propellerTr.Rotate(0f, 0f, propSpeed * Time.deltaTime, Space.Self);         // turn plane propeller
+      
         if(bes.health > 0f)             // if enemy is not dead   
         {
             if (isGoingToPlayer)
@@ -70,8 +71,7 @@ public class EnemyPlaneScript : MonoBehaviour
             DeadPlane();       
         }             
         if(tr.position.y < 0f)
-        {
-            Debug.Log("enemy fall below zero");
+        {           
             bes.BonusDeadSmall();
         }
     }
@@ -79,7 +79,7 @@ public class EnemyPlaneScript : MonoBehaviour
     private void CheckForFiringMuzzle()
     {
         // if the player is in front of plane and is not too far away
-        if (Vector3.Dot((playerTr.position - tr.position).normalized, tr.forward) > 0.95f && direction.magnitude < 15f)      
+        if (Vector3.Dot((playerTr.position - tr.position).normalized, tr.forward) > 0.90f && direction.magnitude < 15f)      
         {
             gunTimer += Time.deltaTime;
             if (gunTimer > gunCooldown)
@@ -106,6 +106,7 @@ public class EnemyPlaneScript : MonoBehaviour
             go.transform.position = gunLh.transform.position;
             go.transform.rotation = gunLh.transform.rotation;
             go.SetActive(true);
+            gunSource.PlayOneShot(shotClip);
             // fire right side gun
             go = prefabController.GetPooledObject(); // GiveBullet();
             go.transform.position = gunRh.transform.position;
@@ -130,8 +131,7 @@ public class EnemyPlaneScript : MonoBehaviour
         direction = playerTr.position - tr.position;
         // calculate offset    
             if (direction.magnitude < 2f)
-            {
-                offset = tr.right * -2f + Vector3.up * -2f;      // if enemy is too close to playet, prevent crash               
+            {                          
                 isGoingToPlayer = false;
             }
             else

@@ -5,15 +5,20 @@ using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.Collections;
+//using System.Drawing;
 
 
 [RequireComponent(typeof(GameManager01))]
 public class CanvasScript : MonoBehaviour
 {
+
     [SerializeField] private GameManager01 gameManager;     // game manager for spawning player and enemies
     public GameObject player;                   // game object pane controlled by player
     public PlayerPlaneScript playerPlane;       // script of player controlled plane
     public VirtualCamSwitcher virtCamSwitcher;  // a script attached to player. used for switching between virt cameras
+    public Image blackoutImage;                 // decrease opacity when game starts;
+    public float fadeTime = 2.0f;               // Duration of the fade (in seconds)
     private bool gearOpen;                      // is landing gear opened. opened = landed position
     public TMP_Text gearButtonText;             // text on button for opening gears
     public TMP_Text speedText;                  // speed of plane
@@ -36,29 +41,32 @@ public class CanvasScript : MonoBehaviour
     public GameObject exploCanvas;              // canvas instantiates this explosion prefab when a plane hit ground etc.
     public int ObjectivesLeft;                  // how many enemy targets to destroy to complete level
     public TMP_Text GameOverText;               // message on game over image when game ends by loss or win
-    public string levelBeginString;
+    public string levelBeginString;             // the message text shown when level is loaded
+    public GameObject nextStageBtn;             // button that loads next stage in build settings list
     
     private void Awake()
     {
         gearOpen = true;
-        gearButtonText.text = "Close LG";
-        ObjectivesLeft = 0;
+        gearButtonText.text = "Close LG";       
     }
 
   
     private void Start()
     {
+        nextStageBtn.SetActive(false);
+        gameOverImage.SetActive(false);
+        StartFadeOut();
+        
         gameManager= GetComponent<GameManager01>();
         player = GameObject.FindWithTag("Player");
         playerPlane = player.GetComponent<PlayerPlaneScript>();
         virtCamSwitcher = player.GetComponent<VirtualCamSwitcher>();
         AdjPlanePower();
         messageText.enabled = false;
-        MessageDisplay(levelBeginString, 2f);
+        MessageDisplay(levelBeginString, 3f);
         score = 0;
         AdjScoreText(0);
-        BulletAdjust();
-        gameOverImage.SetActive(false);
+        BulletAdjust();      
         
         RefreshMarkers();
 
@@ -85,7 +93,54 @@ public class CanvasScript : MonoBehaviour
         }
         UpdateMarkers();
     }
- 
+    private IEnumerator FadeOut()
+    {
+        
+        gameOverImage.SetActive(true);
+        GameOverText.text = "";
+        yield return new WaitForSeconds(0.5f);
+        float elapsedTime = 0.0f;
+        Color originalColor = gameOverImage.GetComponent<Image>().color;
+
+        while (elapsedTime < fadeTime)
+        {
+            yield return null; // Wait for the next frame
+            elapsedTime += Time.deltaTime;
+            float alpha = 1.0f - Mathf.Clamp01(elapsedTime / fadeTime);
+            gameOverImage.GetComponent<Image>().color = new Color(originalColor.r, originalColor.g, originalColor.b, alpha);
+        }
+        gameOverImage.SetActive(false);
+       
+    }
+    private IEnumerator FadeIn()
+    {
+        gameOverImage.SetActive(true);       
+
+        float elapsedTime = 0.0f;
+        Color originalColor = gameOverImage.GetComponent<Image>().color;
+
+        while (elapsedTime <= fadeTime)
+        {
+            yield return null; // Wait for the next frame
+            elapsedTime += Time.deltaTime;
+            float alpha =  Mathf.Clamp01(elapsedTime / fadeTime)+0.01f;
+            if (alpha > 1f) { alpha = 1f; }
+            gameOverImage.GetComponent<Image>().color = new Color(originalColor.r, originalColor.g, originalColor.b, alpha);
+        }
+      
+    }
+
+
+    // Call this method to start the fade-out process
+    public void StartFadeOut()
+    {
+        StartCoroutine(FadeOut());
+    }
+    public void StartFadeIn()
+    {
+        StartCoroutine(FadeIn());
+    }
+
     public void ChangeCamAngle()
     {
         virtCamSwitcher.ChangeCam();
@@ -93,10 +148,11 @@ public class CanvasScript : MonoBehaviour
     public void ObjectiveCompleted()
     {
         gameManager.SpawnEnemy0();
-        ObjectivesLeft += -1;
+        ObjectivesLeft--;
 
         if (ObjectivesLeft < 1)
         {
+            nextStageBtn.SetActive(true);       // a button to load next stage
             GameOverMessage("Mission Completed", 10f);
         }         
        Invoke("RefreshMarkers",2f) ;  
@@ -113,7 +169,12 @@ public class CanvasScript : MonoBehaviour
     {
         for (int i = 0; i < enemyPlane.Length; i++)
         {
-            if (enemyPlane[i].activeInHierarchy)
+            if (!enemyPlane[i])
+            {
+                RefreshMarkers();
+                return;
+            }
+            if (  enemyPlane[i].activeInHierarchy)
             {
                 enemyPosMarker[i].SetActive(true);
                 enemyPosMarker[i].transform.position = WorldToUISpace(gameObject.GetComponent<Canvas>(), enemyPlane[i].transform.position);
@@ -143,11 +204,11 @@ public class CanvasScript : MonoBehaviour
 
             if (movePos.x > 0f)
             {
-                movePos.x = Screen.width * 0.5f;
+                movePos.x = Screen.width * 0.49f;           // show marker on side edge
             }
             else
             {
-                movePos.x = Screen.width * -0.5f;
+                movePos.x = Screen.width * -0.49f;
             }
         }
         return parentCanvas.transform.TransformPoint(movePos);
@@ -210,11 +271,12 @@ public class CanvasScript : MonoBehaviour
         {
             GameOverText.text = s + ".<br>Your score was " + score;
         }
-        Invoke("EndGame", 1f);
+        Invoke("EndGame", 4f);
+        StartFadeIn();
     }
     private void EndGame()      // to finish the game in 1 sec
     {
-        gameOverImage.SetActive(true);
+      //  gameOverImage.SetActive(true);
         Time.timeScale = 0.01f;
     }
   
@@ -263,14 +325,7 @@ public class CanvasScript : MonoBehaviour
     {
         SceneManager.LoadScene(0);
     }
-    public void NextLevel()
-    {
-        int t = SceneManager.sceneCountInBuildSettings;
-        if (SceneManager.GetActiveScene().buildIndex < (t - 1))
-        {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
-        }
-    }
+ 
     private void ChkTimer()
     {      
             timer -= Time.deltaTime;
@@ -315,5 +370,11 @@ public class CanvasScript : MonoBehaviour
     {
         PlayerPrefs.SetFloat("Vol", volumeSlider.value);
         aMixer.SetFloat("MasterVolume", volumeSlider.value);       
+    }
+    public void LoadNextScene()
+    {
+        int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
+        int nextSceneIndex = (currentSceneIndex + 1) % SceneManager.sceneCountInBuildSettings;
+        SceneManager.LoadScene(nextSceneIndex);
     }
 }

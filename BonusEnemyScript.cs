@@ -5,14 +5,14 @@ using UnityEngine;
 public class BonusEnemyScript : MonoBehaviour
 {
     public bool isObjective;                                // is this enemy an objective of game? 
-    public float health;                  // health of enemy object
-    public float maxHealth;
+    public float health;                                    // health of enemy object
+    public float maxHealth;                                 // the beginning max health
     public CanvasScript canvasScript;
     [SerializeField] private int scoreWhenKilled;           // how many points when player kills this enemy
     [SerializeField] private int scoreWhenHit;              // how many points when player's bullet hit this enemy
     [SerializeField] private GameObject smallFire;          // when health is low
     [SerializeField] private GameObject bigFire;            // when health is zero
-    public Collider triggerCol;                             // trigger Collider of bonua
+    public Collider triggerCol;                             // trigger Collider of bonus
 
     private void Awake()
     {
@@ -21,11 +21,7 @@ public class BonusEnemyScript : MonoBehaviour
         health = maxHealth;
     }
     private void Start()
-    {        
-        if (isObjective)
-        {
-            canvasScript.ObjectivesLeft += 1;
-        }            
+    {       
         bigFire.SetActive(false);
         smallFire.SetActive(false);     
     }
@@ -39,7 +35,7 @@ public class BonusEnemyScript : MonoBehaviour
                 health += bul.damage * -1f;
                 canvasScript.GiveExplosion(other.ClosestPointOnBounds(other.transform.position));
                 canvasScript.AdjScoreText(scoreWhenHit);               
-                if (health < 50f && !smallFire.activeInHierarchy)
+                if (health < maxHealth*0.4f && !smallFire.activeInHierarchy)
                 {
                     smallFire.SetActive(true); // t
                 }
@@ -62,23 +58,18 @@ public class BonusEnemyScript : MonoBehaviour
         canvasScript.MessageDisplay("Enemy destroyed", 1f);
         canvasScript.AdjScoreText(scoreWhenKilled);       
         bigFire.SetActive(true);
-        Invoke("Inactivate", 15f);    
+        Invoke("Inactivate", 15f);    // wait until altitude is too low. such as wait zeppelin fall slowly
     }
-    public void BonusDeadSmall()    // dead because transform.y <0
-    {
-        if (isObjective)
-        {
-            canvasScript.ObjectiveCompleted();
-        }
-        triggerCol.enabled = false;
-        canvasScript.RefreshMarkers();
-        gameObject.SetActive(false);
+    public void BonusDeadSmall()    // dead because transform.y <0 and not killed by player
+    {   
+        triggerCol.enabled = false;    
+        Destroy(gameObject, 2f);
+    
     }
 
 
     private void Inactivate()
-    {
-        canvasScript.RefreshMarkers();
-        gameObject.SetActive(false);
+    {     
+        Destroy(gameObject, 2f);     
     }
 }

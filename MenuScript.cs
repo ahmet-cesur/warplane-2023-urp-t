@@ -16,23 +16,29 @@ public class MenuScript : MonoBehaviour
     private int hiscore;                        // high score
     public TMP_Text hiScoreText;                // text box of high score
     public TMP_Text xpText;                     // text box of XP - experience points
-    int difficulty;                             // diff preset its value is 0 ,1 , 2    
+    public TMP_Text rankText;                   // what is pilots rank. calc by XP
+    public TMP_Text goldstext;                  // collected golds text
+    int difficulty;                             // diff preset its value is 0 ,1, 2    
     public Button[] DiffButtons;                // buttons for selecting difficulty
     public Button InvertButton;                 // button inverting vertical plane controls
-   
+    string[] ranks;                      // pilot ranks in air force
+
     private void Start()
     {
+        ranks = new string[] { "Second Lieutenant", "First Lieutenant", "Captain", "Major", "Lieutenant Colonel", "Colonel", "Brigadier General", "Major General", "Lieutenant General", "General", "General of the Air Force" };
         LevelsImage.SetActive(false);
         SettingsImage.SetActive(false);
         CreditsImage.SetActive(false);
         PlaneImage.SetActive(false);
         int xp = PlayerPrefs.GetInt("XP", 0);
         xpText.text = "XP : " + xp;
+        AdjustRanks(xp);
         hiscore = PlayerPrefs.GetInt("HiScore", 0);
         hiScoreText.text= "High Score : "+ hiscore;
         volumeSlider.value = GetMasterLevel();   
         difficulty = PlayerPrefs.GetInt("Diff", 0);
         AdjustButtonColors(difficulty);
+        
         int val = PlayerPrefs.GetInt("SnapY", 1);
         if (val == 1)
         {            
@@ -42,6 +48,7 @@ public class MenuScript : MonoBehaviour
         {           
             InvertButton.image.color = Color.gray;
         }
+
     }
 
     public void SelectPlaneType(int i)
@@ -116,6 +123,30 @@ public class MenuScript : MonoBehaviour
             InvertButton.image.color = Color.white;
         }
     }
+    private void AdjustRanks(int x)
+    {
+        rankText.text = "Your rank : <br>";
+        int r = x / 100;
+        switch (r)
+        {
+            case 0: rankText.text += ranks[0]; break;
+            case 1: rankText.text = ranks[1]; break;
+            case 2: rankText.text = ranks[2]; break;
+            case 3: rankText.text = ranks[3]; break;
+            case 4: rankText.text = ranks[4]; break;
+            case 5: rankText.text = ranks[5]; break;
+            case 6: rankText.text = ranks[6]; break;
+            case 7: rankText.text = ranks[7]; break;
+            case 8: rankText.text = ranks[8]; break;
+            case 9: rankText.text = ranks[9]; break;
+            case 10: rankText.text = ranks[10]; break;
+            default: rankText.text = ranks[11]; break;
 
+
+        }
+
+       
+      
+    }
 
 }

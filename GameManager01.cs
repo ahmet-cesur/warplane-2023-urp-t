@@ -11,8 +11,7 @@ public class GameManager01 : MonoBehaviour
     public Transform enemySpawnPt0;       // transform where enemy will be spawned
     public Transform enemySpawnPt1;       // alternative transform where enemy will be spawned
     public GameObject EnemySpawn0;       // what will it be spawning
-    public int enemySpawnsLeft;          // how many times it will spawn
-
+    
     private void Awake()
     {
         Time.timeScale = 1f;
@@ -30,9 +29,7 @@ public class GameManager01 : MonoBehaviour
     {
         float dist0 = (enemySpawnPt0.position-player.transform.position).sqrMagnitude;
         float dist1 = (enemySpawnPt1.position - player.transform.position).sqrMagnitude;
-        if (enemySpawnsLeft > 0)
-        {
-            enemySpawnsLeft--;
+   
             if(dist0 < dist1)
             {
                 Instantiate(EnemySpawn0, enemySpawnPt1.position, enemySpawnPt1.rotation);           
@@ -42,6 +39,6 @@ public class GameManager01 : MonoBehaviour
                 Instantiate(EnemySpawn0, enemySpawnPt0.position, enemySpawnPt0.rotation);           
             }     
             
-        }        
+           
     }
 }
