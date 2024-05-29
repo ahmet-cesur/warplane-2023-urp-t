@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class PlayerPlaneScript : MonoBehaviour
 {
+// test
     public Animator animator;
     public CanvasScript canvasScript;
     [SerializeField] private PrefabController prefabController;     // the script dealing bullet prefab
