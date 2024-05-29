@@ -4,7 +4,8 @@ using UnityEngine;
 
 public class ZeppelinScript : MonoBehaviour
 {
-    // git test
+    // this script makes enemy npcs descent after being killed =(h<0)
+
     BonusEnemyScript bes;
     private float h;        // health of enemy npc
     Transform tr;
